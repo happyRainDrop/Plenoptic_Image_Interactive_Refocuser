@@ -265,14 +265,6 @@ function draw()
             currentDepth
         ];
 
-    ctx.drawImage(
-        blur,
-        offsetX,
-        offsetY,
-        drawWidth,
-        drawHeight
-    );
-
     const screenX =
         offsetX +
         mouseX * drawWidth;
@@ -285,8 +277,6 @@ function draw()
         parseInt(
             radiusSlider.value
         );
-
-    ctx.save();
 
     const gradient =
         ctx.createRadialGradient(
@@ -309,18 +299,38 @@ function draw()
         "rgba(255,255,255,0)"
     );
 
-    ctx.fillStyle =
-        gradient;
-
-    ctx.fillRect(
+    ctx.drawImage(
+        blur,
         offsetX,
         offsetY,
         drawWidth,
         drawHeight
     );
 
-    ctx.globalCompositeOperation =
-        "source-in";
+    const screenX =
+        offsetX +
+        mouseX * drawWidth;
+
+    const screenY =
+        offsetY +
+        mouseY * drawHeight;
+
+    const radius =
+        parseInt(radiusSlider.value);
+
+    ctx.save();
+
+    ctx.beginPath();
+
+    ctx.arc(
+        screenX,
+        screenY,
+        radius,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.clip();
 
     ctx.drawImage(
         sharp,
