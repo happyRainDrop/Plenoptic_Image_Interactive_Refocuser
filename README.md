@@ -12,7 +12,7 @@ Run `interactive_viewer.py`, then hover your mouse over the image in the pop-up 
 
 3. Download a plenoptic image dataset:
 
-   * Navigate to the plenoptic dataset.
+   * Navigate to the [plenoptic dataset](https://data.mendeley.com/datasets/t6czryg5nw/1).
    * Open the **R29 Raytrix Camera** folder.
    * Download:
 
