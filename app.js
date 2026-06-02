@@ -305,19 +305,31 @@ canvas.addEventListener(
         const rect =
             canvas.getBoundingClientRect();
 
+        const scale =
+            Math.min(
+                canvas.width / imageWidth,
+                canvas.height / imageHeight
+            ) * 0.95;
+
+        const drawWidth =
+            imageWidth * scale;
+
+        const drawHeight =
+            imageHeight * scale;
+
+        const offsetX =
+            (canvas.width - drawWidth) / 2;
+
+        const offsetY =
+            (canvas.height - drawHeight) / 2;
+
         mouseX =
-            (
-                event.clientX -
-                rect.left
-            ) /
-            rect.width;
+            (event.clientX - rect.left - offsetX)
+            / drawWidth;
 
         mouseY =
-            (
-                event.clientY -
-                rect.top
-            ) /
-            rect.height;
+            (event.clientY - rect.top - offsetY)
+            / drawHeight;
 
         mouseX =
             Math.max(
