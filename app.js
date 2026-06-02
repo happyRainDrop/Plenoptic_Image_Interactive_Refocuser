@@ -216,9 +216,7 @@ function updateDepth()
 
 function draw()
 {
-    if(
-        sharpImages.length===0
-    )
+    if (sharpImages.length === 0)
         return;
 
     ctx.clearRect(
@@ -230,11 +228,8 @@ function draw()
 
     const scale =
         Math.min(
-            canvas.width /
-            imageWidth,
-
-            canvas.height /
-            imageHeight
+            canvas.width / imageWidth,
+            canvas.height / imageHeight
         ) * 0.95;
 
     const drawWidth =
@@ -244,61 +239,18 @@ function draw()
         imageHeight * scale;
 
     const offsetX =
-        (
-            canvas.width -
-            drawWidth
-        ) / 2;
+        (canvas.width - drawWidth) / 2;
 
     const offsetY =
-        (
-            canvas.height -
-            drawHeight
-        ) / 2;
+        (canvas.height - drawHeight) / 2;
 
     const blur =
-        blurImages[
-            currentDepth
-        ];
+        blurImages[currentDepth];
 
     const sharp =
-        sharpImages[
-            currentDepth
-        ];
+        sharpImages[currentDepth];
 
-    const screenX =
-        offsetX +
-        mouseX * drawWidth;
-
-    const screenY =
-        offsetY +
-        mouseY * drawHeight;
-
-    const radius =
-        parseInt(
-            radiusSlider.value
-        );
-
-    const gradient =
-        ctx.createRadialGradient(
-            screenX,
-            screenY,
-            radius * 0.25,
-
-            screenX,
-            screenY,
-            radius
-        );
-
-    gradient.addColorStop(
-        0,
-        "rgba(255,255,255,1)"
-    );
-
-    gradient.addColorStop(
-        1,
-        "rgba(255,255,255,0)"
-    );
-
+    // draw blurred image everywhere
     ctx.drawImage(
         blur,
         offsetX,
@@ -316,8 +268,11 @@ function draw()
         mouseY * drawHeight;
 
     const radius =
-        parseInt(radiusSlider.value);
+        parseInt(
+            radiusSlider.value
+        );
 
+    // clip a circle and draw sharp image inside it
     ctx.save();
 
     ctx.beginPath();
