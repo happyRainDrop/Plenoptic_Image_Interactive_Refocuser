@@ -229,6 +229,14 @@ def generate_sharpened_focal_stack(path_to_focal_stack_folder):
         cv2.imwrite(outname, img)
 
 
+''' Chess
 generate_depth_selection_arr("plenoptic_images_depth_slices/Chess")
 generate_blurred_focal_stack("plenoptic_images_depth_slices/Chess")
 generate_sharpened_focal_stack("plenoptic_images_depth_slices/Chess")
+#'''
+
+#''' University
+generate_depth_selection_arr("plenoptic_images_depth_slices/University_Processed")
+generate_blurred_focal_stack("plenoptic_images_depth_slices/University_Processed")
+generate_sharpened_focal_stack("plenoptic_images_depth_slices/University_Processed")
+#'''

@@ -1,12 +1,15 @@
 """
-depth_slices.py
+depth_slices_subapt_OLD.py
 Written by Ruth
+
+DO NOT USE THIS FILE FOR GENERATING THE FOCAL STACK!! 
+This is old code!
+SUBAPETURE VIEWS ARE VERY LOW RESOLUTION!
 
 Generates depth focal stacks
 Modified from PlenopticToolbox2.0 in that it doesn't use disparity map
-(which, when I tried running, took an extremely long time to generate)
-Instead we do a simpler method: combine subapeture views similar to CS 166 HW 3 no 2
-
+(which, when I tried running, took an extremely long time to generate disparity map)
+Instead we do a simpler method: combine subapeture views similar to CS 166 HW 3 no 2 
 """
 
 import numpy as np
@@ -293,7 +296,7 @@ def generate_depth_slices(plenoptic_image_name, focal_planes, xml_file_path="ple
 
                     subapt_img = get_subaperture_image(lenslet_img_list, lenslet_pc_list, u, v)
 
-                    ''' GIF generation, sanity check
+                    ''' GIF generation, sanity check, AI helped me write this
                     subapt_uint8 = np.uint8(255 * subapt_img.clip(0, 1))
 
                     frame = Image.fromarray(subapt_uint8)
@@ -325,5 +328,4 @@ def generate_depth_slices(plenoptic_image_name, focal_planes, xml_file_path="ple
                 loop=0
             )
 
-
-generate_depth_slices("University_Processed", [0.4])       
+generate_depth_slices("University_Processed", [0.3])       
