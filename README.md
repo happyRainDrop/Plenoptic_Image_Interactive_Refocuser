@@ -1,5 +1,8 @@
 # Introduction
 
+Update: Now also live on [Github Pages!](https://happyraindrop.github.io/Plenoptic_Image_Interactive_Refocuser/)
+(You can still clone the whole repo to run the Python version too.)
+
 This is a Python project that interactively focuses parts of a displayed plenoptic image.
 
 Run `interactive_viewer.py`, then hover your mouse over the image in the pop-up window. You should see an illuminated, focused region around the cursor. A dropdown menu allows you to select which image to interact with.
