@@ -9,6 +9,7 @@ and the numpy array to choose which focal stack to select based on position
 import numpy as np
 import cv2
 from scipy.ndimage import gaussian_filter
+from scipy.ndimage import distance_transform_edt
 
 def generate_depth_selection_arr(path_to_focal_stack_folder):
     """
@@ -57,20 +58,80 @@ def generate_depth_selection_arr(path_to_focal_stack_folder):
         # smooth so we don't get noisy per-pixel depth
         sharpness = cv2.GaussianBlur(sharpness, (11, 11), 0)
 
+        # Now make it the size of our output depth-stack indexing map
         sharpness_small = cv2.resize(sharpness, (out_w, out_h), interpolation=cv2.INTER_AREA)
         sharpness_maps.append(sharpness_small)
 
-    # Now, choose the best focal depth pic for each location!
+
+        # Now, choose the best focal depth pic for each location!
     # We don't naively choose the sharpest, because that can lead to big jumps
     # across the focal stack -- ideally, adjacent physical locations
     # should have close-together chosen focal stacks too (like 06 and 07)
     sharpness_volume = np.stack(sharpness_maps, axis=0)
-    depth_chooser = np.argmax(sharpness_volume, axis=0).astype(np.uint8)
+    depth_chooser_a = np.argmax(sharpness_volume, axis=0).astype(np.uint8)
         # Smooth focal jumps
-    depth_chooser = cv2.medianBlur(depth_chooser.astype(np.uint8),11)
+    # Lastly, Smooth focal jumps
+    depth_chooser_a = cv2.medianBlur(depth_chooser_a.astype(np.uint8),11)
+    np.savetxt("output_n.txt", depth_chooser_a, fmt="%d", delimiter=",")
 
-    np.savez(path_to_focal_stack_folder + "/depth_chooser.npz", depth_chooser=depth_chooser)
+    sharpness_maps = np.asarray(sharpness_maps)
+
+    # First pass: Fill in highly-confident pixels
+    depth_chooser = np.zeros((out_h, out_w))
+    confidence_threshold = np.max(sharpness_maps)*0.005
+    for r in range(out_h):
+        for c in range(out_w):
+            sharpnesses = sharpness_maps[:, r, c]
+            
+            # Get the two largest values
+            largest_two = np.partition(sharpnesses, -2)[-2:]
+            max_sharpness = largest_two[1]
+            second_max_sharpness = largest_two[0]
+
+            # Check confidence
+            if (max_sharpness - second_max_sharpness > confidence_threshold):
+                depth_chooser[r,c] = np.argmax(sharpnesses)
+            else:
+                depth_chooser[r,c] = -1
+
+    np.savetxt("output_n.txt", depth_chooser, fmt="%d", delimiter=",")
+    # Then, create a "reference" array of what things would look like
+    # if every unconfident region just took the depth map of its nearest neighbor
+    unconfident_mask = (depth_chooser == -1)      # True where pixels are "unconfident"
+    # Get indices of nearest non-empty cell for every location
+    _, indices = distance_transform_edt(unconfident_mask, return_distances=True, return_indices=True)
+    # Fill empties with nearest neighbor values
+    naive_depth_chooser = depth_chooser[tuple(indices)]
+
+    # Second pass: Fill in neighboring low-confidence pixels
+    SHARPNESS_DIFF_THRESH = confidence_threshold*0.1
+    for r in range(out_h):
+        for c in range(out_w):
+            if (depth_chooser[r,c] == -1):
+                
+                sharpnesses = sharpness_maps[:, r, c]
+                max_sharpness = np.max(sharpnesses)
+                naive_chosen_depth = int(naive_depth_chooser[r,c])
+
+                # Find the nearest to this selected depth!
+                diff_from_naive_depth =  0
+                while(diff_from_naive_depth < NUM_PNGS):
+                    smaller_chosen_depth = max(0, naive_chosen_depth - diff_from_naive_depth)
+                    larger_chosen_depth = min(NUM_PNGS-1, naive_chosen_depth + diff_from_naive_depth)
+
+                    if (np.max(sharpnesses) - sharpnesses[smaller_chosen_depth] < SHARPNESS_DIFF_THRESH):
+                        depth_chooser[r,c] = smaller_chosen_depth
+                        break
+                    if (np.max(sharpnesses) - sharpnesses[larger_chosen_depth] < SHARPNESS_DIFF_THRESH):
+                        depth_chooser[r,c] = larger_chosen_depth
+                        break
+
+                    diff_from_naive_depth+=1
+       
+        # Lastly, Smooth focal jumps
+    depth_chooser = cv2.medianBlur(depth_chooser.astype(np.uint8),11)
     np.savetxt("output.txt", depth_chooser, fmt="%d", delimiter=",")
+    np.savez(path_to_focal_stack_folder + "/depth_chooser.npz", depth_chooser=depth_chooser)
 
 
 

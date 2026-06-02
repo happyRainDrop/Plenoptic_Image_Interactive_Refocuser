@@ -77,7 +77,7 @@ def median_filter(img, filter_size, footprint=None, changeColorSpace=False):
 
     # resolution should be correlated with number of lenses more than 
     
-def generate_depth_slices_new(plenoptic_image_name, depth_image_name, focal_planes, xml_file_path="plenoptic_images_raw/R29.xml"):
+def generate_depth_slices_new(plenoptic_image_name, depth_image_name, focal_planes, fmin = 0.2, fmax = 1.2, xml_file_path="plenoptic_images_raw/R29.xml"):
 
     """ 
     Input: 
@@ -86,6 +86,8 @@ def generate_depth_slices_new(plenoptic_image_name, depth_image_name, focal_plan
         depth_image_name: We will use this to pull a "disparity map"
             Expecting the depth image at plenoptic_images_raw/depth_image_name.png
         focal_planes: List of floats; chooses depth to focus at. Floats between 0 and 1. 
+        fmin: Minimum expected focal plane. Disparity 0 stuff is focused here when focal_plane = fmin
+        fmax: Maximum expected focal plane. Disparity 1 stuff is focused here when focal_plane = fmax
     Output:
         Depth images in plenoptic_images_depth_slices/plenoptic_image_name/
             as depth-00.png, depth-01.png... for all focal planes specified
@@ -218,8 +220,6 @@ def generate_depth_slices_new(plenoptic_image_name, depth_image_name, focal_plan
     disparity_per_lenslet = [] # A list of average disparity at each lenslet
     cmap = plt.cm.jet(np.linspace(0, 1, 256))[:, :3] # Colormap to compare depth map colors to
     
-    min_disp = 1
-    max_disp = 10
     for lc in coords:
         
         # Grab lens center
@@ -250,15 +250,12 @@ def generate_depth_slices_new(plenoptic_image_name, depth_image_name, focal_plan
     # Improve disparity dynamic range
     mean = np.mean(disparity_per_lenslet)
     std = np.std(disparity_per_lenslet)
-    current_low = mean - 2 * std
-    current_high = mean + 2 * std
-    disparity_per_lenslet = (disparity_per_lenslet - current_low)/(current_high - current_low)
+    lower_3sig = mean - 2 * std
+    upper_3sig = mean + 2 * std
+    disparity_per_lenslet = (disparity_per_lenslet - lower_3sig)/(upper_3sig - lower_3sig)
     disparity_per_lenslet = np.clip(disparity_per_lenslet, a_min=1e-10, a_max=1-1e-10)
 
     print("Done calculating disparity from depth.")
-    plt.hist(disparity_per_lenslet, bins=50)
-    plt.show()
-    print("Done showing histogram of disparities.")
 
     '''
     4. Calculate interpolated maps for image and depth image
@@ -303,6 +300,7 @@ def generate_depth_slices_new(plenoptic_image_name, depth_image_name, focal_plan
         x, y = local_grid.x, local_grid.y
         
         patch_size_for_sampling = focal_plane * lens_diameter / 2
+        effective_patch_sizes = []
         for j, lc in enumerate(coords):
 
             # pixel coordinates
@@ -312,26 +310,46 @@ def generate_depth_slices_new(plenoptic_image_name, depth_image_name, focal_plan
             #print(f"\tsingle_val_disp = {single_val_disp}, patch_size_for_sampling = {patch_size_for_sampling}")
             # sample the image at the correct position
             coords_resized = pc / reducing_factor
+
+                # Try to improve blurring of non-in-focus plane
+
+                # First, choose the expected disparity in the plane of focus, 
+                # making note that smaller disparity = close to camera
+                # and smaller focal plane = close to camera
+            focus_disp = (focal_plane - fmin)/(fmax - fmin)
+            focus_error = (single_val_disp - focus_disp)  # positive = farther away --> make patch smaller
+            blur_strength = 10.0
+            effective_patch_size = patch_size_for_sampling - blur_strength * focus_error
+            effective_patch_size = max(effective_patch_size, 1)
+            effective_patch_size = min(effective_patch_size, 1.1*(lens_diameter/2))
+            effective_patch_sizes.append(effective_patch_size)
+
             intPCx = np.ceil(coords_resized[1]).astype(int)
             intPCy = np.ceil(coords_resized[0]).astype(int)
             if intPCx > sam_per_lens and resolution[1] - intPCx > sam_per_lens and intPCy > sam_per_lens and resolution[0] - intPCy > sam_per_lens:
-                #pdb.set_trace()
-                #sampling_pattern = np.arange(-sampling_distance*sam_per_lens, sampling_distance*sam_per_lens + sampling_distance, sampling_distance)
-                sampling_pattern = np.arange(-patch_size_for_sampling, patch_size_for_sampling, (2 * patch_size_for_sampling) / (2 * sam_per_lens + 1))
+
+                sampling_pattern = np.linspace(
+                    -effective_patch_size,
+                    effective_patch_size,
+                    2*sam_per_lens + 1
+                )          
                 sampling_pattern_x = sampling_pattern
                 sampling_pattern_y = sampling_pattern
+
                 # extract the patch
                 patch_values = np.dstack((data_interp_r(sampling_pattern_y+pc[0], sampling_pattern_x+pc[1]),
                     data_interp_g(sampling_pattern_y+pc[0], sampling_pattern_x+pc[1]),
                     data_interp_b(sampling_pattern_y+pc[0], sampling_pattern_x+pc[1])))
+                #print("patch_values raw:", patch_values.shape)
                 patch_values = np.clip(patch_values, 0, np.max(patch_values))
+                assert patch_values.shape[0] == 2*sam_per_lens + 1
+                assert patch_values.shape[1] == 2*sam_per_lens + 1
                 #print("patch_values size {}".format(patch_values.shape))
                 # interpolate the values
                 interp_patch_r = sinterp.RectBivariateSpline(range(patch_values.shape[0]), range(patch_values.shape[1]), patch_values[:,:,0])
                 interp_patch_g = sinterp.RectBivariateSpline(range(patch_values.shape[0]), range(patch_values.shape[1]), patch_values[:,:,1])
                 interp_patch_b = sinterp.RectBivariateSpline(range(patch_values.shape[0]), range(patch_values.shape[1]), patch_values[:,:,2])
-                #create the grid for sampling
-                #pdb.set_trace()
+
                 sampling_pattern_for_patch_y = np.arange((intPCy-coords_resized[0]), (intPCy-coords_resized[0]+2*sam_per_lens+1), 1)
                 sampling_pattern_for_patch_x = np.arange((intPCx-coords_resized[1]), (intPCx-coords_resized[1]+2*sam_per_lens+1), 1)
 
@@ -412,8 +430,9 @@ def generate_depth_slices_new(plenoptic_image_name, depth_image_name, focal_plan
         if cut_borders:
             rnd_img_final = rnd_img_final[padding:rnd_img_final.shape[0]-padding, padding:rnd_img_final.shape[1]-padding,:]
         
-        
+        print(f" patch sizes {min(effective_patch_sizes)} -- {max(effective_patch_sizes)}")
         Image.fromarray(np.uint8(255 * rnd_img_final.clip(0, 1)**(1/1))).save(output_str)
-        print(f"\t...saved image{output_str}")
+        print(f"\t...saved image {output_str}")
 
-generate_depth_slices_new("University_Processed", "University_Depth", np.linspace(0.55, 0.85, 11).tolist())       
+generate_depth_slices_new("University_Processed", "University_Depth", np.linspace(0.58, 0.92, 11).tolist(), 0.3, 1.0)       
+# generate_depth_slices_new("Beers_Processed", "Beers_Depth", [0.1, 0.5, 1.0, 1.2])       
