@@ -133,6 +133,9 @@ def generate_depth_selection_arr(path_to_focal_stack_folder):
     np.savetxt("output.txt", depth_chooser, fmt="%d", delimiter=",")
     np.savez(path_to_focal_stack_folder + "/depth_chooser.npz", depth_chooser=depth_chooser)
 
+        # Save as png for desktop version
+    chooser_uint8 = depth_chooser.astype(np.uint8)
+    cv2.imwrite(path_to_focal_stack_folder + "/depth_chooser.png",chooser_uint8)
 
 
 def generate_blurred_focal_stack(path_to_focal_stack_folder):
