@@ -216,7 +216,7 @@ function updateDepth()
 
 function draw()
 {
-    if (sharpImages.length === 0)
+    if(sharpImages.length === 0)
         return;
 
     ctx.clearRect(
@@ -250,15 +250,6 @@ function draw()
     const sharp =
         sharpImages[currentDepth];
 
-    // draw blurred image everywhere
-    ctx.drawImage(
-        blur,
-        offsetX,
-        offsetY,
-        drawWidth,
-        drawHeight
-    );
-
     const screenX =
         offsetX +
         mouseX * drawWidth;
@@ -272,21 +263,44 @@ function draw()
             radiusSlider.value
         );
 
-    // clip a circle and draw sharp image inside it
-    ctx.save();
-
-    ctx.beginPath();
-
-    ctx.arc(
-        screenX,
-        screenY,
-        radius,
-        0,
-        Math.PI * 2
+    // Draw blurred image everywhere
+    ctx.drawImage(
+        blur,
+        offsetX,
+        offsetY,
+        drawWidth,
+        drawHeight
     );
 
-    ctx.clip();
+    // Create feathered mask
+    const gradient =
+        ctx.createRadialGradient(
+            screenX,
+            screenY,
+            0,
+            screenX,
+            screenY,
+            radius
+        );
 
+    gradient.addColorStop(
+        0.0,
+        "rgba(255,255,255,1)"
+    );
+
+    gradient.addColorStop(
+        0.7,
+        "rgba(255,255,255,1)"
+    );
+
+    gradient.addColorStop(
+        1.0,
+        "rgba(255,255,255,0)"
+    );
+
+    ctx.save();
+
+    // Draw sharp image
     ctx.drawImage(
         sharp,
         offsetX,
@@ -295,7 +309,36 @@ function draw()
         drawHeight
     );
 
+    // Keep only the gradient region
+    ctx.globalCompositeOperation =
+        "destination-in";
+
+    ctx.fillStyle =
+        gradient;
+
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
     ctx.restore();
+
+    // Draw blurred image again underneath
+    ctx.globalCompositeOperation =
+        "destination-over";
+
+    ctx.drawImage(
+        blur,
+        offsetX,
+        offsetY,
+        drawWidth,
+        drawHeight
+    );
+
+    ctx.globalCompositeOperation =
+        "source-over";
 }
 
 canvas.addEventListener(

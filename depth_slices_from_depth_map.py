@@ -321,7 +321,7 @@ def generate_depth_slices_new(plenoptic_image_name, depth_image_name, focal_plan
             blur_strength = 10.0
             effective_patch_size = patch_size_for_sampling - blur_strength * focus_error
             effective_patch_size = max(effective_patch_size, 1)
-            effective_patch_size = min(effective_patch_size, 1.1*(lens_diameter/2))
+            effective_patch_size = min(effective_patch_size, 0.95*(lens_diameter/2))
             effective_patch_sizes.append(effective_patch_size)
 
             intPCx = np.ceil(coords_resized[1]).astype(int)
